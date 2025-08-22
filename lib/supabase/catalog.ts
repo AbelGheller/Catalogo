@@ -4,7 +4,7 @@ import { CatalogItem, CatalogTag, AuditLog, CatalogResponse } from '@/types/cata
 // Função para buscar itens
 export async function searchItems(query?: string, tag?: string, level?: string): Promise<CatalogResponse> {
   try {
-    const { data, error } = await supabase.rpc('catalog_search_items', {
+    const { data, error } = await supabase.rpc('rpc_search_items', {
       q: query || '',
       tag: tag || '',
       level: level || ''
@@ -37,7 +37,7 @@ export async function createOrUpdateItem(payload: {
   tags?: string[]
 }): Promise<CatalogResponse> {
   try {
-    const { data, error } = await supabase.rpc('catalog_create_or_update_item', {
+    const { data, error } = await supabase.rpc('rpc_create_or_update_item', {
       payload: payload
     })
 
@@ -56,10 +56,10 @@ export async function createOrUpdateItem(payload: {
 // Função para anexar filho (criar relacionamento)
 export async function attachChild(parentCode: string, childCode: string, relation: string = 'contains'): Promise<CatalogResponse> {
   try {
-    const { data, error } = await supabase.rpc('catalog_attach_child', {
+    const { data, error } = await supabase.rpc('rpc_attach_child_auto', {
       parent_code: parentCode,
       child_code: childCode,
-      relation: relation
+      p_relation: relation
     })
 
     if (error) throw error
@@ -77,7 +77,7 @@ export async function attachChild(parentCode: string, childCode: string, relatio
 // Função para deletar item
 export async function deleteItem(code: string, cascade: boolean = false): Promise<CatalogResponse> {
   try {
-    const { data, error } = await supabase.rpc('catalog_delete_item', {
+    const { data, error } = await supabase.rpc('rpc_delete_item', {
       item_code: code,
       cascade_delete: cascade
     })
@@ -97,7 +97,7 @@ export async function deleteItem(code: string, cascade: boolean = false): Promis
 // Função para importar CSV
 export async function importCsvItems(csvData: string): Promise<CatalogResponse> {
   try {
-    const { data, error } = await supabase.rpc('catalog_import_csv_items', {
+    const { data, error } = await supabase.rpc('rpc_import_csv_items', {
       csv_data: csvData
     })
 
@@ -117,12 +117,12 @@ export async function importCsvItems(csvData: string): Promise<CatalogResponse> 
 export async function getAllTags(): Promise<CatalogTag[]> {
   try {
     const { data, error } = await supabase
-      .from('catalog_tags')
-      .select('id, name')
+      .from('item_tags')
+      .select('id, tag')
       .order('name')
 
     if (error) throw error
-    return data || []
+    return (data || []).map(item => ({ id: item.id, name: item.tag }))
   } catch (error) {
     console.error('Erro ao buscar tags:', error)
     return []
@@ -133,7 +133,7 @@ export async function getAllTags(): Promise<CatalogTag[]> {
 export async function getAuditLogs(itemCode?: string, limit: number = 100): Promise<AuditLog[]> {
   try {
     let query = supabase
-      .from('catalog_audit_logs')
+      .from('audit_logs')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(limit)
