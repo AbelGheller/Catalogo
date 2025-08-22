@@ -20,6 +20,7 @@ import { Loader2, ShoppingCart, Settings, Cog, Package, Plus } from 'lucide-reac
 export default function VendaveisPage() {
   const [sellables, setSellables] = useState<Sellable[]>([])
   const [loading, setLoading] = useState(true)
+  const [configError, setConfigError] = useState<string | null>(null)
   const [cart, setCart] = useState<string[]>([])
 
   useEffect(() => {
@@ -28,7 +29,14 @@ export default function VendaveisPage() {
         const data = await getSellables()
         setSellables(data)
       } catch (error) {
-        console.error('Erro ao carregar vendáveis:', error)
+        const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
+        console.error('Erro ao carregar vendáveis:', errorMessage)
+        
+        // Check if it's a Supabase configuration error
+        if (errorMessage.includes('env.NEXT_PUBLIC_SUPABASE_URL') || 
+            errorMessage.includes('env.NEXT_PUBLIC_SUPABASE_ANON_KEY')) {
+          setConfigError('Configuração do Supabase necessária')
+        }
       } finally {
         setLoading(false)
       }
@@ -119,6 +127,48 @@ export default function VendaveisPage() {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin" />
           <span className="ml-2">Carregando vendáveis...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (configError) {
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <Breadcrumb className="mb-6">
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/">Home</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Vendáveis</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+
+        <div className="max-w-2xl mx-auto text-center py-12">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
+            <h2 className="text-xl font-semibold text-yellow-800 mb-4">
+              Configuração do Supabase Necessária
+            </h2>
+            <p className="text-yellow-700 mb-4">
+              Para usar esta funcionalidade, você precisa configurar suas credenciais do Supabase.
+            </p>
+            <div className="text-left bg-white p-4 rounded border text-sm">
+              <p className="font-medium mb-2">Passos para configurar:</p>
+              <ol className="list-decimal list-inside space-y-1 text-gray-700">
+                <li>Crie um projeto no <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Supabase</a></li>
+                <li>Vá para Settings → API no seu projeto</li>
+                <li>Copie a URL do projeto e a chave anônima</li>
+                <li>Atualize o arquivo <code className="bg-gray-100 px-1 rounded">.env.local</code> com suas credenciais</li>
+                <li>Reinicie o servidor de desenvolvimento</li>
+              </ol>
+            </div>
+          </div>
+          <Button onClick={() => window.location.reload()} variant="outline">
+            Tentar Novamente
+          </Button>
         </div>
       </div>
     )
