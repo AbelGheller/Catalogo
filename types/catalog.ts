@@ -16,13 +16,6 @@ export interface CatalogTag {
   kind: string
 }
 
-export interface CatalogRelation {
-  parent_id: string
-  child_id: string
-  relation: string
-  created_at: string
-}
-
 export interface AuditLog {
   id: string
   item_code?: string

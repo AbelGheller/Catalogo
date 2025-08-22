@@ -56,9 +56,9 @@ import {
   FileText
 } from 'lucide-react'
 import { 
-  searchItems, 
-  createOrUpdateItem, 
-  deleteItem, 
+  searchItems,
+  createOrUpdateItem,
+  deleteItem,
   getAllTags,
   importCsvItems,
   exportItemsToCsv,
