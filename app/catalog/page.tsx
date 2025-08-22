@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { isSupabaseConfigured, getSupabaseConfigStatus } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -73,6 +74,8 @@ export default function CatalogPage() {
   const [tags, setTags] = useState<CatalogTag[]>([])
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
   const [loading, setLoading] = useState(false)
+  const [supabaseConfigured, setSupabaseConfigured] = useState(false)
+  const [configMessage, setConfigMessage] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTag, setSelectedTag] = useState<string>('')
   const [selectedLevel, setSelectedLevel] = useState<string>('')
@@ -100,12 +103,22 @@ export default function CatalogPage() {
 
   // Carregar dados iniciais
   useEffect(() => {
+    const configStatus = getSupabaseConfigStatus()
+    setSupabaseConfigured(configStatus.configured)
+    setConfigMessage(configStatus.message)
+    
+    if (!configStatus.configured) {
+      return
+    }
+    
     loadItems()
     loadTags()
     loadAuditLogs()
   }, [])
 
   const loadItems = async () => {
+    if (!isSupabaseConfigured()) return
+    
     setLoading(true)
     try {
       const result = await searchItems(searchQuery || undefined, selectedTag || undefined, selectedLevel || undefined)
@@ -120,6 +133,8 @@ export default function CatalogPage() {
   }
 
   const loadTags = async () => {
+    if (!isSupabaseConfigured()) return
+    
     try {
       const tagList = await getAllTags()
       setTags(tagList)
@@ -129,6 +144,8 @@ export default function CatalogPage() {
   }
 
   const loadAuditLogs = async () => {
+    if (!isSupabaseConfigured()) return
+    
     try {
       const logs = await getAuditLogs(undefined, 50)
       setAuditLogs(logs)
@@ -138,10 +155,13 @@ export default function CatalogPage() {
   }
 
   const handleSearch = () => {
+    if (!isSupabaseConfigured()) return
     loadItems()
   }
 
   const handleCreateItem = async () => {
+    if (!isSupabaseConfigured()) return
+    
     setLoading(true)
     try {
       const payload = {
@@ -189,6 +209,7 @@ export default function CatalogPage() {
 
   const handleDeleteItem = async (code: string) => {
     if (!code) return
+    if (!isSupabaseConfigured()) return
     
     setLoading(true)
     try {
@@ -210,6 +231,7 @@ export default function CatalogPage() {
 
   const handleImportCsv = async () => {
     if (!csvData.trim()) return
+    if (!isSupabaseConfigured()) return
     
     setLoading(true)
     try {
@@ -231,6 +253,7 @@ export default function CatalogPage() {
 
   const handleValidateCsv = async () => {
     if (!csvData.trim()) return
+    if (!isSupabaseConfigured()) return
     
     try {
       const validation = await validateCsvData(csvData)
@@ -241,6 +264,8 @@ export default function CatalogPage() {
   }
 
   const handleExportCsv = async () => {
+    if (!isSupabaseConfigured()) return
+    
     try {
       const csvContent = await exportItemsToCsv()
       const blob = new Blob([csvContent], { type: 'text/csv' })
@@ -280,6 +305,26 @@ export default function CatalogPage() {
 
   return (
     <div className="container mx-auto py-8 px-4">
+      {!supabaseConfigured && (
+        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertCircle className="w-5 h-5 text-yellow-600" />
+            <h3 className="font-semibold text-yellow-800">Configuração do Supabase Necessária</h3>
+          </div>
+          <p className="text-yellow-700 mb-4">{configMessage}</p>
+          <div className="text-sm text-yellow-600">
+            <p className="font-medium mb-2">Para configurar:</p>
+            <ol className="list-decimal list-inside space-y-1">
+              <li>Crie um projeto no <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="underline">Supabase</a></li>
+              <li>Vá para Settings → API no seu projeto</li>
+              <li>Copie a URL do projeto e a chave anônima</li>
+              <li>Atualize o arquivo <code className="bg-yellow-100 px-1 rounded">.env.local</code> com suas credenciais</li>
+              <li>Reinicie o servidor de desenvolvimento</li>
+            </ol>
+          </div>
+        </div>
+      )}
+      
       <Breadcrumb className="mb-6">
         <BreadcrumbList>
           <BreadcrumbItem>

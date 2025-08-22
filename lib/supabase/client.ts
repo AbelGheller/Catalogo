@@ -1,36 +1,34 @@
 import { createClient } from '@supabase/supabase-js'
 
-let supabaseInstance: ReturnType<typeof createClient> | null = null
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://your-project-id.supabase.co'
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'your-anon-key-here'
 
-// Create a function to get the Supabase client with proper validation
-function getSupabaseClient() {
-  if (supabaseInstance) {
-    return supabaseInstance
-  }
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!supabaseUrl || supabaseUrl === 'https://your-project-id.supabase.co') {
-    throw new Error('Missing or invalid env.NEXT_PUBLIC_SUPABASE_URL. Please check your .env.local file and replace the placeholder values with your actual Supabase project credentials.')
-  }
-
-  if (!supabaseAnonKey || supabaseAnonKey === 'your-anon-key-here') {
-    throw new Error('Missing or invalid env.NEXT_PUBLIC_SUPABASE_ANON_KEY. Please check your .env.local file and replace the placeholder values with your actual Supabase project credentials.')
-  }
-
-  supabaseInstance = createClient(supabaseUrl, supabaseAnonKey)
-  return supabaseInstance
+// Helper function to check if Supabase is properly configured
+export function isSupabaseConfigured(): boolean {
+  return supabaseUrl !== 'https://your-project-id.supabase.co' && 
+         supabaseAnonKey !== 'your-anon-key-here' &&
+         supabaseUrl.includes('supabase.co')
 }
 
-// Export a proxy object that creates the client only when methods are called
-export const supabase = new Proxy({} as ReturnType<typeof createClient>, {
-  get(target, prop) {
-    const client = getSupabaseClient()
-    const value = client[prop as keyof typeof client]
-    return typeof value === 'function' ? value.bind(client) : value
+// Helper function to get configuration status
+export function getSupabaseConfigStatus(): {
+  configured: boolean
+  message: string
+} {
+  if (!isSupabaseConfigured()) {
+    return {
+      configured: false,
+      message: 'Supabase não está configurado. Por favor, atualize as variáveis NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY no arquivo .env.local com suas credenciais reais do Supabase.'
+    }
   }
-})
+  
+  return {
+    configured: true,
+    message: 'Supabase configurado corretamente'
+  }
+}
 
 export type Database = {
   public: {
