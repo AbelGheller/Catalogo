@@ -15,8 +15,8 @@ function CatalogoContent() {
     setLoading(true)
     
     try {
-      const foundItems = await searchItems(filters.query, filters.tag, filters.level)
-      setItems(foundItems)
+      const result = await searchItems(filters.query, filters.tag, filters.level)
+      setItems(result.data || [])
       
     } catch (error) {
       console.error('Erro ao buscar dados:', error)

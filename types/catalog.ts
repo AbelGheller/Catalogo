@@ -29,7 +29,7 @@ export interface AuditLog {
 export interface CatalogResponse {
   status: 'success' | 'error'
   message: string
-  data: any
+  data: CatalogItem[] | null
   warnings?: string[]
 }
 

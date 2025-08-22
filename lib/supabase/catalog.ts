@@ -4,14 +4,18 @@ import { CatalogItem, CatalogTag, AuditLog, CatalogResponse } from '@/types/cata
 // Função para buscar itens
 export async function searchItems(query?: string, tag?: string, level?: string): Promise<CatalogResponse> {
   try {
-    const { data, error } = await supabase.rpc('catalog_search_items', {
-      q: query,
-      tag: tag,
-      level: level
+    const { data, error } = await supabase.rpc('rpc_search_items', {
+      search_query: query || '',
+      search_tag: tag || '',
+      search_level: level || ''
     })
 
     if (error) throw error
-    return data as CatalogResponse
+    return {
+      status: 'success',
+      message: 'Busca realizada com sucesso',
+      data: data || []
+    }
   } catch (error) {
     console.error('Erro ao buscar itens:', error)
     return {
@@ -113,7 +117,7 @@ export async function importCsvItems(csvData: string): Promise<CatalogResponse> 
 export async function getAllTags(): Promise<CatalogTag[]> {
   try {
     const { data, error } = await supabase
-      .from('catalog_tags')
+      .from('item_tags')
       .select('*')
       .order('name')
 
