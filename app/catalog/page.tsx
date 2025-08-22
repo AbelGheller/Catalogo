@@ -63,7 +63,8 @@ import {
   importCsvItems,
   exportItemsToCsv,
   attachChild,
-  getAuditLogs
+  getAuditLogs,
+  validateCsvData
 } from '@/lib/supabase/catalog'
 import { CatalogItem, CatalogTag, AuditLog, CATALOG_LEVELS } from '@/types/catalog'
 
@@ -95,6 +96,7 @@ export default function CatalogPage() {
   // Estados para importação
   const [csvData, setCsvData] = useState('')
   const [importResult, setImportResult] = useState<any>(null)
+  const [csvValidation, setCsvValidation] = useState<any>(null)
 
   // Carregar dados iniciais
   useEffect(() => {
@@ -214,7 +216,7 @@ export default function CatalogPage() {
       const result = await importCsvItems(csvData)
       setImportResult(result)
       
-      if (result.success > 0) {
+      if (result.status === 'success' && result.data?.success_count > 0) {
         loadItems()
         loadTags()
         loadAuditLogs()
@@ -224,6 +226,17 @@ export default function CatalogPage() {
       alert('Erro ao importar CSV')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleValidateCsv = async () => {
+    if (!csvData.trim()) return
+    
+    try {
+      const validation = await validateCsvData(csvData)
+      setCsvValidation(validation)
+    } catch (error) {
+      console.error('Erro ao validar CSV:', error)
     }
   }
 
@@ -601,7 +614,7 @@ export default function CatalogPage() {
                 <Label htmlFor="csv-data">Dados CSV</Label>
                 <Textarea
                   id="csv-data"
-                  placeholder="code,name,level,tags,parent_code,is_kit,context,attributes&#10;EQP-0001,Pá-carregadeira 3T,Equipamento,construção;XGMA,,false,{},{}&#10;MTR-0001,Motor 4D80,Parte,motor;yuchai,EQP-0001,false,{},{}"
+                  placeholder="code,name,level,tags,parent_code,is_kit,context,attributes&#10;EQP-0001,Pá-carregadeira 3T,Equipamento,&quot;construção;XGMA&quot;,,false,{},{}&#10;MTR-0001,Motor 4D80,Parte,&quot;motor;yuchai&quot;,EQP-0001,false,{},{}"
                   value={csvData}
                   onChange={(e) => setCsvData(e.target.value)}
                   rows={10}
@@ -610,6 +623,16 @@ export default function CatalogPage() {
               </div>
               
               <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={handleValidateCsv} 
+                  disabled={loading || !csvData.trim()} 
+                  className="gap-2"
+                >
+                  <AlertCircle className="w-4 h-4" />
+                  Validar CSV
+                </Button>
+                
                 <Button onClick={handleImportCsv} disabled={loading || !csvData.trim()} className="gap-2">
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                   Importar CSV
@@ -620,11 +643,81 @@ export default function CatalogPage() {
                 </Button>
               </div>
               
+              {csvValidation && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      {csvValidation.valid ? (
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      ) : (
+                        <AlertCircle className="w-5 h-5 text-red-600" />
+                      )}
+                      Validação do CSV
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {csvValidation.errors.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold text-red-600 mb-2">Erros encontrados:</h4>
+                        <div className="space-y-1 max-h-32 overflow-y-auto">
+                          {csvValidation.errors.map((error: string, index: number) => (
+                            <div key={index} className="text-sm text-red-700 bg-red-50 p-2 rounded">
+                              {error}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {csvValidation.warnings.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold text-yellow-600 mb-2">Avisos:</h4>
+                        <div className="space-y-1 max-h-32 overflow-y-auto">
+                          {csvValidation.warnings.map((warning: string, index: number) => (
+                            <div key={index} className="text-sm text-yellow-700 bg-yellow-50 p-2 rounded">
+                              {warning}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {csvValidation.preview.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Preview (primeiras 5 linhas):</h4>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm border">
+                            <thead>
+                              <tr className="bg-gray-50">
+                                <th className="border p-2 text-left">Code</th>
+                                <th className="border p-2 text-left">Name</th>
+                                <th className="border p-2 text-left">Level</th>
+                                <th className="border p-2 text-left">Tags</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {csvValidation.preview.map((row: any, index: number) => (
+                                <tr key={index}>
+                                  <td className="border p-2">{row.code || '-'}</td>
+                                  <td className="border p-2">{row.name}</td>
+                                  <td className="border p-2">{row.level || 'Auto'}</td>
+                                  <td className="border p-2">{row.tags || '-'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+              
               {importResult && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      {importResult.success > 0 ? (
+                      {importResult.status === 'success' ? (
                         <CheckCircle className="w-5 h-5 text-green-600" />
                       ) : (
                         <AlertCircle className="w-5 h-5 text-red-600" />
@@ -635,37 +728,43 @@ export default function CatalogPage() {
                   <CardContent className="space-y-3">
                     <div className="grid gap-2 md:grid-cols-3">
                       <div className="text-center p-3 bg-green-50 rounded-lg">
-                        <div className="text-2xl font-bold text-green-600">{importResult.success}</div>
+                        <div className="text-2xl font-bold text-green-600">
+                          {importResult.data?.success_count || 0}
+                        </div>
                         <div className="text-sm text-green-700">Sucessos</div>
                       </div>
                       <div className="text-center p-3 bg-red-50 rounded-lg">
-                        <div className="text-2xl font-bold text-red-600">{importResult.errors.length}</div>
+                        <div className="text-2xl font-bold text-red-600">
+                          {importResult.data?.error_count || 0}
+                        </div>
                         <div className="text-sm text-red-700">Erros</div>
                       </div>
                       <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                        <div className="text-2xl font-bold text-yellow-600">{importResult.warnings.length}</div>
+                        <div className="text-2xl font-bold text-yellow-600">
+                          {importResult.data?.warnings?.length || 0}
+                        </div>
                         <div className="text-sm text-yellow-700">Avisos</div>
                       </div>
                     </div>
                     
-                    {importResult.errors.length > 0 && (
+                    {importResult.data?.errors?.length > 0 && (
                       <div>
                         <h4 className="font-semibold text-red-600 mb-2">Erros:</h4>
                         <div className="space-y-1 max-h-32 overflow-y-auto">
-                          {importResult.errors.map((error: any, index: number) => (
+                          {importResult.data.errors.map((error: string, index: number) => (
                             <div key={index} className="text-sm text-red-700 bg-red-50 p-2 rounded">
-                              Linha {error.row}: {error.error}
+                              {error}
                             </div>
                           ))}
                         </div>
                       </div>
                     )}
                     
-                    {importResult.warnings.length > 0 && (
+                    {importResult.data?.warnings?.length > 0 && (
                       <div>
                         <h4 className="font-semibold text-yellow-600 mb-2">Avisos:</h4>
                         <div className="space-y-1 max-h-32 overflow-y-auto">
-                          {importResult.warnings.map((warning: string, index: number) => (
+                          {importResult.data.warnings.map((warning: string, index: number) => (
                             <div key={index} className="text-sm text-yellow-700 bg-yellow-50 p-2 rounded">
                               {warning}
                             </div>
