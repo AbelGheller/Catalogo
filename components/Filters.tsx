@@ -9,9 +9,8 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
-import { CatalogFilters } from '@/types'
-import { getDistinctEquipmentValues } from '@/lib/queries/equipment'
-import { getDistinctAssemblyValues } from '@/lib/queries/assembly'
+import { CatalogFilters, CATALOG_LEVELS } from '@/types/catalog'
+import { getAllTags } from '@/lib/supabase/catalog'
 
 interface FiltersProps {
   onFiltersChange: (filters: CatalogFilters) => void
@@ -22,42 +21,21 @@ export function Filters({ onFiltersChange }: FiltersProps) {
   const searchParams = useSearchParams()
   
   const [filters, setFilters] = useState<CatalogFilters>({})
-  const [options, setOptions] = useState({
-    equipmentMarcas: [] as string[],
-    equipmentModelos: [] as string[],
-    equipmentTipos: [] as string[],
-    equipmentAnos: [] as string[],
-    motorMarcas: [] as string[],
-    bombaMarcas: [] as string[]
-  })
+  const [tags, setTags] = useState<string[]>([])
 
   useEffect(() => {
-    // Carregar opções para os selects
-    Promise.all([
-      getDistinctEquipmentValues(),
-      getDistinctAssemblyValues()
-    ]).then(([equipmentValues, assemblyValues]) => {
-      setOptions({
-        equipmentMarcas: equipmentValues.marcas,
-        equipmentModelos: equipmentValues.modelos,
-        equipmentTipos: equipmentValues.tipos,
-        equipmentAnos: equipmentValues.anos,
-        motorMarcas: assemblyValues.motorMarcas,
-        bombaMarcas: assemblyValues.bombaMarcas
-      })
+    // Carregar tags disponíveis
+    getAllTags().then((allTags) => {
+      setTags(allTags.map(tag => tag.name))
     })
   }, [])
 
   useEffect(() => {
     // Carregar filtros da URL
     const urlFilters: CatalogFilters = {
-      equipmentMarca: searchParams.get('equipmentMarca') || undefined,
-      equipmentModelo: searchParams.get('equipmentModelo') || undefined,
-      equipmentTipo: searchParams.get('equipmentTipo') || undefined,
-      equipmentAno: searchParams.get('equipmentAno') || undefined,
-      motorMarca: searchParams.get('motorMarca') || undefined,
-      bombaInjetoraMarca: searchParams.get('bombaInjetoraMarca') || undefined,
-      sku: searchParams.get('sku') || undefined,
+      query: searchParams.get('query') || undefined,
+      tag: searchParams.get('tag') || undefined,
+      level: searchParams.get('level') || undefined,
     }
     setFilters(urlFilters)
     onFiltersChange(urlFilters)
@@ -102,21 +80,31 @@ export function Filters({ onFiltersChange }: FiltersProps) {
         )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <div className="space-y-2">
-          <Label htmlFor="equipment-marca">Marca do Equipamento</Label>
+          <Label htmlFor="query">Busca Geral</Label>
+          <Input
+            id="query"
+            placeholder="Digite nome, código ou descrição..."
+            value={filters.query || ''}
+            onChange={(e) => updateFilters({ query: e.target.value || undefined })}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="level">Nível</Label>
           <Select
-            value={filters.equipmentMarca || ''}
-            onValueChange={(value) => updateFilters({ equipmentMarca: value === 'all' ? undefined : value })}
+            value={filters.level || ''}
+            onValueChange={(value) => updateFilters({ level: value === 'all' ? undefined : value })}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Selecionar marca" />
+              <SelectValue placeholder="Todos os níveis" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todas as marcas</SelectItem>
-              {options.equipmentMarcas.map((marca) => (
-                <SelectItem key={marca} value={marca}>
-                  {marca}
+              <SelectItem value="all">Todos os níveis</SelectItem>
+              {CATALOG_LEVELS.map((level) => (
+                <SelectItem key={level} value={level}>
+                  {level}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -124,74 +112,24 @@ export function Filters({ onFiltersChange }: FiltersProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="equipment-modelo">Modelo do Equipamento</Label>
+          <Label htmlFor="tag">Tag</Label>
           <Select
-            value={filters.equipmentModelo || ''}
-            onValueChange={(value) => updateFilters({ equipmentModelo: value === 'all' ? undefined : value })}
+            value={filters.tag || ''}
+            onValueChange={(value) => updateFilters({ tag: value === 'all' ? undefined : value })}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Selecionar modelo" />
+              <SelectValue placeholder="Todas as tags" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos os modelos</SelectItem>
-              {options.equipmentModelos.map((modelo) => (
-                <SelectItem key={modelo} value={modelo}>
-                  {modelo}
+              <SelectItem value="all">Todas as tags</SelectItem>
+              {tags.map((tag) => (
+                <SelectItem key={tag} value={tag}>
+                  {tag}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="motor-marca">Marca do Motor</Label>
-          <Select
-            value={filters.motorMarca || ''}
-            onValueChange={(value) => updateFilters({ motorMarca: value === 'all' ? undefined : value })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecionar marca" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as marcas</SelectItem>
-              {options.motorMarcas.map((marca) => (
-                <SelectItem key={marca} value={marca}>
-                  {marca}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="bomba-marca">Marca da Bomba Injetora</Label>
-          <Select
-            value={filters.bombaInjetoraMarca || ''}
-            onValueChange={(value) => updateFilters({ bombaInjetoraMarca: value === 'all' ? undefined : value })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecionar marca" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as marcas</SelectItem>
-              {options.bombaMarcas.map((marca) => (
-                <SelectItem key={marca} value={marca}>
-                  {marca}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="sku">SKU da Peça (opcional)</Label>
-        <Input
-          id="sku"
-          placeholder="Digite o SKU da peça..."
-          value={filters.sku || ''}
-          onChange={(e) => updateFilters({ sku: e.target.value || undefined })}
-        />
       </div>
 
       {/* Filtros Ativos */}
@@ -199,66 +137,40 @@ export function Filters({ onFiltersChange }: FiltersProps) {
         <div className="space-y-2">
           <Label>Filtros ativos:</Label>
           <div className="flex flex-wrap gap-2">
-            {filters.equipmentMarca && (
+            {filters.query && (
               <Badge variant="secondary" className="gap-1">
-                Equip. Marca: {filters.equipmentMarca}
+                Busca: {filters.query}
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-auto p-0 w-4 h-4"
-                  onClick={() => removeFilter('equipmentMarca')}
+                  onClick={() => removeFilter('query')}
                 >
                   <X className="w-3 h-3" />
                 </Button>
               </Badge>
             )}
-            {filters.equipmentModelo && (
+            {filters.level && (
               <Badge variant="secondary" className="gap-1">
-                Equip. Modelo: {filters.equipmentModelo}
+                Nível: {filters.level}
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-auto p-0 w-4 h-4"
-                  onClick={() => removeFilter('equipmentModelo')}
+                  onClick={() => removeFilter('level')}
                 >
                   <X className="w-3 h-3" />
                 </Button>
               </Badge>
             )}
-            {filters.motorMarca && (
+            {filters.tag && (
               <Badge variant="secondary" className="gap-1">
-                Motor: {filters.motorMarca}
+                Tag: {filters.tag}
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-auto p-0 w-4 h-4"
-                  onClick={() => removeFilter('motorMarca')}
-                >
-                  <X className="w-3 h-3" />
-                </Button>
-              </Badge>
-            )}
-            {filters.bombaInjetoraMarca && (
-              <Badge variant="secondary" className="gap-1">
-                Bomba: {filters.bombaInjetoraMarca}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-auto p-0 w-4 h-4"
-                  onClick={() => removeFilter('bombaInjetoraMarca')}
-                >
-                  <X className="w-3 h-3" />
-                </Button>
-              </Badge>
-            )}
-            {filters.sku && (
-              <Badge variant="secondary" className="gap-1">
-                SKU: {filters.sku}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-auto p-0 w-4 h-4"
-                  onClick={() => removeFilter('sku')}
+                  onClick={() => removeFilter('tag')}
                 >
                   <X className="w-3 h-3" />
                 </Button>

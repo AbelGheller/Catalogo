@@ -3,56 +3,20 @@
 import { useState, useEffect, Suspense } from 'react'
 import { Filters } from '@/components/Filters'
 import { ResultCard } from '@/components/ResultCard'
-import { Equipment, Assembly, Part, CatalogFilters } from '@/types'
-import { getEquipmentsByFilters } from '@/lib/queries/equipment'
-import { getAssembliesByFilters } from '@/lib/queries/assembly'
-import { getPartsByFilters } from '@/lib/queries/part'
+import { CatalogItem, CatalogFilters } from '@/types/catalog'
+import { searchItems } from '@/lib/supabase/catalog'
 import { Loader2 } from 'lucide-react'
 
 function CatalogoContent() {
   const [loading, setLoading] = useState(false)
-  const [equipments, setEquipments] = useState<Equipment[]>([])
-  const [assemblies, setAssemblies] = useState<Assembly[]>([])
-  const [parts, setParts] = useState<Part[]>([])
+  const [items, setItems] = useState<CatalogItem[]>([])
 
   const handleFiltersChange = async (filters: CatalogFilters) => {
     setLoading(true)
     
     try {
-      // Buscar equipamentos primeiro
-      const equipmentFilters = {
-        marca: filters.equipmentMarca,
-        modelo: filters.equipmentModelo,
-        tipo: filters.equipmentTipo,
-        ano: filters.equipmentAno
-      }
-      
-      const foundEquipments = await getEquipmentsByFilters(equipmentFilters)
-      setEquipments(foundEquipments)
-      
-      const equipmentIds = foundEquipments.map(eq => eq.id)
-      
-      // Buscar conjuntos baseado nos equipamentos encontrados e filtros de motor/bomba
-      const assemblyFilters = {
-        equipmentIds: equipmentIds.length > 0 ? equipmentIds : undefined,
-        motorMarca: filters.motorMarca,
-        bombaInjetoraMarca: filters.bombaInjetoraMarca
-      }
-      
-      const foundAssemblies = await getAssembliesByFilters(assemblyFilters)
-      setAssemblies(foundAssemblies)
-      
-      const assemblyIds = foundAssemblies.map(as => as.id)
-      
-      // Buscar peças baseado nos equipamentos e conjuntos encontrados
-      const partFilters = {
-        equipmentIds: equipmentIds.length > 0 ? equipmentIds : undefined,
-        assemblyIds: assemblyIds.length > 0 ? assemblyIds : undefined,
-        sku: filters.sku
-      }
-      
-      const foundParts = await getPartsByFilters(partFilters)
-      setParts(foundParts)
+      const foundItems = await searchItems(filters.query, filters.tag, filters.level)
+      setItems(foundItems)
       
     } catch (error) {
       console.error('Erro ao buscar dados:', error)
@@ -77,7 +41,14 @@ function CatalogoContent() {
     handleFiltersChange({})
   }, [])
 
-  const totalResults = equipments.length + assemblies.length + parts.length
+  const totalResults = items.length
+  
+  // Agrupar itens por nível
+  const equipamentos = items.filter(item => item.level === 'Equipamento')
+  const conjuntos = items.filter(item => item.level === 'Conjunto')
+  const partes = items.filter(item => item.level === 'Parte')
+  const pecas = items.filter(item => item.level === 'Peça')
+  const kits = items.filter(item => item.level === 'Kit')
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -105,59 +76,88 @@ function CatalogoContent() {
             <h2 className="text-xl font-semibold">
               Resultados encontrados: {totalResults}
             </h2>
-            {equipments.length > 0 && (
+            {totalResults > 0 && (
               <span className="text-muted-foreground">
-                {equipments.length} equipamento(s), {assemblies.length} conjunto(s), {parts.length} peça(s)
+                {equipamentos.length} equipamento(s), {conjuntos.length} conjunto(s), {partes.length} parte(s), {pecas.length} peça(s), {kits.length} kit(s)
               </span>
             )}
           </div>
 
           <div className="space-y-8">
-            {equipments.length > 0 && (
+            {equipamentos.length > 0 && (
               <section>
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  Equipamentos ({equipments.length})
+                  Equipamentos ({equipamentos.length})
                 </h3>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {equipments.map((equipment) => (
+                  {equipamentos.map((item) => (
                     <ResultCard
-                      key={equipment.id}
-                      item={equipment}
-                      type="equipment"
+                      key={item.id}
+                      item={item}
                     />
                   ))}
                 </div>
               </section>
             )}
 
-            {assemblies.length > 0 && (
+            {conjuntos.length > 0 && (
               <section>
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  Conjuntos ({assemblies.length})
+                  Conjuntos ({conjuntos.length})
                 </h3>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {assemblies.map((assembly) => (
+                  {conjuntos.map((item) => (
                     <ResultCard
-                      key={assembly.id}
-                      item={assembly}
-                      type="assembly"
+                      key={item.id}
+                      item={item}
                     />
                   ))}
                 </div>
               </section>
             )}
 
-            {parts.length > 0 && (
+            {partes.length > 0 && (
               <section>
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  Peças ({parts.length})
+                  Partes ({partes.length})
                 </h3>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {parts.map((part) => (
+                  {partes.map((item) => (
                     <ResultCard
-                      key={part.id}
-                      item={part}
-                      type="part"
+                      key={item.id}
+                      item={item}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {pecas.length > 0 && (
+              <section>
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  Peças ({pecas.length})
+                </h3>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {pecas.map((item) => (
+                    <ResultCard
+                      key={item.id}
+                      item={item}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {kits.length > 0 && (
+              <section>
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  Kits ({kits.length})
+                </h3>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {kits.map((item) => (
+                    <ResultCard
+                      key={item.id}
+                      item={item}
                     />
                   ))}
                 </div>

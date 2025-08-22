@@ -1,100 +1,83 @@
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Equipment, Assembly, Part } from '@/types'
-import { Settings, Cog, Package } from 'lucide-react'
+import { CatalogItem } from '@/types/catalog'
+import { Settings, Cog, Package, Wrench, Box } from 'lucide-react'
 
 interface ResultCardProps {
-  item: Equipment | Assembly | Part
-  type: 'equipment' | 'assembly' | 'part'
+  item: CatalogItem
 }
 
-export function ResultCard({ item, type }: ResultCardProps) {
+export function ResultCard({ item }: ResultCardProps) {
   const getIcon = () => {
-    switch (type) {
-      case 'equipment':
+    switch (item.level) {
+      case 'Equipamento':
         return <Settings className="w-4 h-4" />
-      case 'assembly':
+      case 'Conjunto':
         return <Cog className="w-4 h-4" />
-      case 'part':
+      case 'Parte':
+        return <Wrench className="w-4 h-4" />
+      case 'Peça':
+        return <Package className="w-4 h-4" />
+      case 'Kit':
+        return <Box className="w-4 h-4" />
+      default:
         return <Package className="w-4 h-4" />
     }
   }
 
   const getTypeLabel = () => {
-    switch (type) {
-      case 'equipment':
-        return 'Equipamento'
-      case 'assembly':
-        return 'Conjunto'
-      case 'part':
-        return 'Peça'
-    }
+    return item.level
   }
 
   const getVariant = () => {
-    switch (type) {
-      case 'equipment':
+    switch (item.level) {
+      case 'Equipamento':
         return 'default' as const
-      case 'assembly':
+      case 'Conjunto':
         return 'secondary' as const
-      case 'part':
+      case 'Parte':
+        return 'outline' as const
+      case 'Peça':
+        return 'outline' as const
+      case 'Kit':
+        return 'destructive' as const
+      default:
         return 'outline' as const
     }
   }
 
   const getHref = () => {
-    const baseUrl = type === 'equipment' ? '/equipamentos' : 
-                   type === 'assembly' ? '/conjuntos' : '/pecas'
+    const baseUrl = '/catalog'
     return `${baseUrl}/${item.id}`
   }
 
   const getTitle = () => {
-    if (type === 'part') {
-      const part = item as Part
-      return part.nome
-    }
-    return `${item.marca} ${item.modelo}`
+    return item.name
   }
 
   const getSubtitle = () => {
-    if (type === 'equipment') {
-      const equipment = item as Equipment
-      return `${equipment.tipo} ${equipment.ano ? `(${equipment.ano})` : ''}`
+    const parts = []
+    
+    if (item.code) {
+      parts.push(`Código: ${item.code}`)
     }
     
-    if (type === 'assembly') {
-      const assembly = item as Assembly
-      return `${assembly.tipo} ${assembly.ano ? `(${assembly.ano})` : ''}`
+    if (item.attributes && typeof item.attributes === 'object') {
+      const attrs = item.attributes as Record<string, any>
+      Object.entries(attrs).slice(0, 2).forEach(([key, value]) => {
+        parts.push(`${key}: ${value}`)
+      })
     }
     
-    if (type === 'part') {
-      const part = item as Part
-      return `SKU: ${part.sku} | Marca: ${part.marca}`
-    }
+    return parts.join(' | ') || 'Sem informações adicionais'
   }
 
   const getContext = () => {
-    if (type === 'assembly') {
-      const assembly = item as Assembly
-      if (assembly.equipment) {
-        return `Equipamento: ${assembly.equipment.marca} ${assembly.equipment.modelo}`
-      }
-    }
-    
-    if (type === 'part') {
-      const part = item as Part
-      const contexts = []
-      
-      if (part.equipment) {
-        contexts.push(`Equipamento: ${part.equipment.marca} ${part.equipment.modelo}`)
-      }
-      
-      if (part.assembly) {
-        contexts.push(`Conjunto: ${part.assembly.marca} ${part.assembly.modelo}`)
-      }
-      
-      return contexts.join(' | ')
+    if (item.context && typeof item.context === 'object') {
+      const ctx = item.context as Record<string, any>
+      const contextParts = Object.entries(ctx).map(([key, value]) => `${key}: ${value}`)
+      return contextParts.join(' | ')
     }
     
     return null
@@ -109,9 +92,9 @@ export function ResultCard({ item, type }: ResultCardProps) {
               {getIcon()}
               {getTypeLabel()}
             </Badge>
-            {item.serie && (
+            {item.code && (
               <span className="text-xs text-muted-foreground">
-                Série: {item.serie}
+                {item.code}
               </span>
             )}
           </div>
